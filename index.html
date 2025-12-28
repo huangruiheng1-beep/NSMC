@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#F2F2F7">
+    <title>Natural Surface Calculator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+            background-color: #F2F2F7;
+            -webkit-font-smoothing: antialiased;
+            padding-bottom: env(safe-area-inset-bottom);
+        }
+
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+
+        .no-scrollbar {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        .glass-card {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.5);
+        }
+
+        .ios-input:focus {
+            outline: none;
+            background-color: #FFFFFF;
+            border-color: #007AFF;
+            box-shadow: 0 0 0 4px rgba(0, 122, 255, 0.1);
+        }
+
+        .fade-in-up {
+            animation: fadeInUp 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Unit Toggle Active State */
+        .unit-active {
+            background-color: #000;
+            color: #fff;
+            font-weight: 600;
+        }
+
+        .unit-inactive {
+            background-color: #e5e7eb;
+            color: #6b7280;
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header
+        class="pt-[max(env(safe-area-inset-top),20px)] pb-4 px-6 bg-white/80 backdrop-blur-md sticky top-0 z-50 border-b border-gray-200/50">
+        <div class="flex flex-col items-center justify-center space-y-2">
+            <!-- Logo Image Removed, Replaced with Text -->
+            <h1 class="text-2xl font-bold text-gray-900 tracking-tight">Natural Surface</h1>
+
+            <div class="text-center">
+                <p class="text-[10px] font-bold text-gray-800 tracking-widest uppercase">MATERIAL CALCULATOR</p>
+                <p class="text-[10px] text-gray-400 tracking-widest">澳洲NS微岩石材料用量程序</p>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 px-5 py-6 space-y-6 overflow-y-auto no-scrollbar">
+
+        <!-- Unit Toggle -->
+        <section class="fade-in-up flex justify-end" style="animation-delay: 0.05s;">
+            <div class="flex items-center bg-gray-100/50 rounded-full p-1 cursor-pointer">
+                <button id="btn-m2" onclick="setUnit('m2')"
+                    class="unit-active relative rounded-full px-6 py-2.5 text-sm font-bold transition-all duration-300 flex items-center space-x-1 outline-none">
+                    <span>m² 平方米</span>
+                </button>
+                <button id="btn-ft2" onclick="setUnit('ft2')"
+                    class="unit-inactive relative rounded-full px-6 py-2.5 text-sm font-bold transition-all duration-300 flex items-center space-x-1 outline-none text-gray-400 hover:text-gray-600">
+                    <span>ft² 平方英尺</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- 1. Process Select -->
+        <section class="fade-in-up" style="animation-delay: 0.1s;">
+            <label class="block text-sm font-semibold text-gray-500 mb-2 ml-1">
+                施工工序 <span class="text-xs font-normal text-gray-400">/ Process</span>
+            </label>
+            <div class="relative">
+                <select id="processSelect" onchange="calculate()"
+                    class="w-full appearance-none bg-white rounded-2xl py-4 pl-4 pr-10 text-base font-medium text-gray-900 shadow-sm border border-gray-100 focus:ring-2 focus:ring-black/5 transition-all outline-none">
+                    <option value="" disabled selected>请选择 / Select Type</option>
+                    <option value="ground_base">地面底层 (MR01) / Ground Base</option>
+                    <option value="mr02_standard">常规地面面层 (MR02) / Standard Ground Face</option>
+                    <option value="mr02_reinforced">加强版地面面层 (MR02) / Reinforced Ground Face</option>
+                    <option value="sealer">封孔剂 (SR) / Sealer/Primer</option>
+                    <option value="protection">罩面保护层 (T系列) / Protection</option>
+                </select>
+                <div class="pointer-events-none absolute inset-y-0 right-0 flex itemscenter px-4 text-gray-500">
+                    <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2. Input Section (Area or Material) -->
+        <section class="fade-in-up" style="animation-delay: 0.2s;">
+
+            <!-- Mode Toggle -->
+            <div class="flex bg-gray-100 p-1 rounded-xl mb-4">
+                <button id="mode-area" onclick="setInputMode('area')"
+                    class="flex-1 py-2 text-sm font-bold text-gray-900 bg-white shadow-sm rounded-lg transition-all">
+                    按面积 / By Area
+                </button>
+                <button id="mode-material" onclick="setInputMode('material')"
+                    class="flex-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-all">
+                    按材料 / By Material
+                </button>
+            </div>
+
+            <!-- Area Input Field -->
+            <div id="areaInputContainer">
+                <label class="block text-sm font-semibold text-gray-500 mb-2 ml-1">
+                    施工面积 <span class="text-xs font-normal text-gray-400">/ Area</span>
+                </label>
+                <div class="relative">
+                    <input type="number" id="areaInput" placeholder="0" inputmode="decimal" oninput="calculate()"
+                        class="ios-input w-full bg-white rounded-2xl py-4 pl-4 pr-16 text-3xl font-bold text-gray-900 shadow-sm border border-gray-100 placeholder-gray-200 transition-all">
+                    <div class="absolute inset-y-0 right-0 flex items-center px-5 pointer-events-none">
+                        <span id="unitLabel" class="text-gray-400 font-medium">m²</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Material Weight Input Field (Hidden by default) -->
+            <div id="materialInputContainer" class="hidden">
+                <label id="materialInputLabel" class="block text-sm font-semibold text-gray-500 mb-2 ml-1">
+                    材料重量 <span class="text-xs font-normal text-gray-400">/ Material Weight</span>
+                </label>
+                <div class="relative mb-3">
+                    <input type="number" id="materialInput" placeholder="0" inputmode="decimal" oninput="calculate()"
+                        class="ios-input w-full bg-white rounded-2xl py-4 pl-4 pr-16 text-3xl font-bold text-purple-600 shadow-sm border border-gray-100 placeholder-gray-200 transition-all">
+                    <div class="absolute inset-y-0 right-0 flex items-center px-5 pointer-events-none">
+                        <span class="text-gray-400 font-medium">kg</span>
+                    </div>
+                </div>
+
+                <!-- Calculated Result Display -->
+                <div class="bg-purple-50 rounded-xl p-3 flex items-center justify-between">
+                    <span class="text-xs font-bold text-purple-400 uppercase">可施工面积 / Coverage</span>
+                    <span id="calculatedAreaDisplay" class="text-lg font-bold text-purple-700">0 ft²</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- 2.5 Color Selection (Conditional) -->
+        <section id="colorSection" class="fade-in-up hidden" style="animation-delay: 0.25s;">
+            <label class="block text-sm font-semibold text-gray-500 mb-2 ml-1">
+                色浆选择 <span class="text-xs font-normal text-gray-400">/ Color Paste</span>
+            </label>
+
+            <div id="colorRowsContainer" class="space-y-2 mb-2">
+                <!-- Dynamic Rows Injected Here -->
+            </div>
+
+            <button onclick="addColorRow()"
+                class="w-full py-3 rounded-2xl border-2 border-dashed border-gray-200 text-gray-400 font-medium hover:border-gray-300 hover:text-gray-500 transition-colors flex items-center justify-center space-x-2">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                <span>添加色浆 / Add Color</span>
+            </button>
+        </section>
+
+        <!-- 3. Results -->
+        <div id="resultContainer" class="hidden space-y-6 fade-in-up" style="animation-delay: 0.3s;">
+
+            <!-- Protection Layer Settings -->
+            <div id="protectionSettings" class="hidden mb-6 fade-in-up">
+                <label class="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">
+                    保护层加水量 / Water Ratio
+                </label>
+                <div class="relative">
+                    <select id="protectionWaterRatio" onchange="calculate()"
+                        class="w-full appearance-none bg-white rounded-2xl py-4 pl-4 pr-10 text-base font-bold text-gray-900 shadow-sm border border-gray-100 hover:border-gray-200 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none">
+                        <option value="0.10">10% (Default)</option>
+                        <option value="0.15">15%</option>
+                        <option value="0.20">20%</option>
+                        <option value="0.30">30%</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-gray-500">
+                        <i data-lucide="chevron-down" class="w-5 h-5"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table -->
+            <section>
+                <div class="flex items-center justify-between mb-3 ml-1">
+                    <label class="text-sm font-semibold text-gray-500">
+                        材料清单 <span class="text-xs font-normal text-gray-400">/ Material List</span>
+                    </label>
+                    <span class="text-[10px] bg-black text-white px-2 py-1 rounded-full opacity-80">Standard
+                        Ratio</span>
+                </div>
+
+                <div class="glass-card rounded-2xl overflow-hidden">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="border-b border-gray-100 bg-gray-50/50">
+                                <th class="py-3 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider">材料 /
+                                    Item</th>
+                                <th
+                                    class="py-3 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right">
+                                    用量 / Qty</th>
+                                <th
+                                    class="py-3 px-4 text-[10px] font-bold text-gray-500 uppercase tracking-wider text-right">
+                                    公式 / Formula</th>
+                            </tr>
+                        </thead>
+                        <tbody id="materialTableBody" class="text-sm"></tbody>
+                    </table>
+                </div>
+            </section>
+
+            <!-- Mix Method -->
+            <div class="glass-card p-5 rounded-2xl">
+                <div class="flex items-center space-x-2 mb-3 text-orange-500">
+                    <i data-lucide="shuffle" class="w-5 h-5"></i>
+                    <h3 class="font-bold text-gray-900 text-sm">搅拌方式 <span
+                            class="text-xs font-normal text-gray-400 ml-1">/ Mixing Method</span></h3>
+                </div>
+                <div id="mixMethod" class="text-sm text-gray-600 leading-relaxed text-justify space-y-1"></div>
+            </div>
+
+            <!-- Notices -->
+            <div class="glass-card p-5 rounded-2xl border-l-4 border-red-500">
+                <div class="flex items-center space-x-2 mb-3 text-red-500">
+                    <i data-lucide="alert-circle" class="w-5 h-5"></i>
+                    <h3 class="font-bold text-gray-900 text-sm">注意事项 <span
+                            class="text-xs font-normal text-gray-400 ml-1">/ Precautions</span></h3>
+                </div>
+                <ul id="noticeList" class="text-sm text-gray-600 space-y-2 list-disc list-inside"></ul>
+            </div>
+
+        </div>
+
+        <div class="h-10"></div>
+    </main>
+
+    <footer class="bg-gray-50 py-4 text-center border-t border-gray-200">
+        <p class="text-[10px] text-gray-400">© 2025 Natural Surface. All Rights Reserved.</p>
+    </footer>
+
+    <script>
+        lucide.createIcons();
+
+        // Config
+        let currentUnit = 'm2'; // Default to m2
+        const SQFT_TO_SQM = 10.763910417;
+        let colorCode = '';
+        let colorPerKg = 0;
+
+        // Data Definition (Bilingual)
+        const processes = {
+            ground_base: {
+                // Ground Base (MR01)
+                baseConsumption: 16 / 24, // 16kg / 24m2
+                mixMethod: "搅拌机混合搅拌<br><span class='text-xs text-gray-400'>Mix with mechanical mixer.</span>",
+                notices: [
+                    "搅拌后马上使用<br><span class='text-xs text-gray-400'>Use immediately after mixing.</span>",
+                    "不建议一桶搅拌，干得比较快，建议每8kg的MR01粉料使用<br><span class='text-xs text-gray-400'>Do not mix full bucket. Dries fast. Suggest mixing per 8kg of MR01.</span>",
+                    "如果批挂得比较快可以适当增加<br><span class='text-xs text-gray-400'>Can increase amount if applying quickly.</span>",
+                    "中途变稠可以加水<br><span class='text-xs text-gray-400'>Can add water if thickens during use.</span>"
+                ],
+                materials: [
+                    { code: "MR01", name: "MR01粗砂<br><span class='text-[10px] text-gray-400'>MR01 Coarse</span>", ratio: 1, isBase: true, formula: "/" },
+                    { code: "SR01", name: "SR01<br><span class='text-[10px] text-gray-400'>Resin A</span>", ratio: 0.15, formula: "MR01 × 15%" },
+                    { code: "SR02", name: "SR02<br><span class='text-[10px] text-gray-400'>Resin B</span>", ratio: 0.15, formula: "MR01 × 15%" },
+                    { code: "SR03", name: "SR03可选配<br><span class='text-[10px] text-gray-400'>SR03 Optional</span>", ratio: 0.006, formula: "MR01 × 0.6%" },
+                    { code: "Water", name: "水<br><span class='text-[10px] text-gray-400'>Water</span>", ratio: 0.30, formula: "MR01 × 30%" }
+                ]
+            },
+            mr02_standard: {
+                // Standard Ground Face (Formerly Wall Face logic: 15% resins, 30% water)
+                baseConsumption: 16 / 46,
+                mixMethod: "搅拌机混合搅拌<br><span class='text-xs text-gray-400'>Mix with mechanical mixer.</span>",
+                notices: [
+                    "开始需要加水<br><span class='text-xs text-gray-400'>Need to add water initially.</span>",
+                    "中途变稠可以加水<br><span class='text-xs text-gray-400'>Can add water if thickens during use.</span>"
+                ],
+                materials: [
+                    { code: "MR02", name: "MR02细砂<br><span class='text-[10px] text-gray-400'>MR02 Fine</span>", ratio: 1, isBase: true, formula: "/" },
+                    { code: "SR01", name: "SR01<br><span class='text-[10px] text-gray-400'>Resin A</span>", ratio: 0.15, formula: "MR02 × 15%" },
+                    { code: "SR02", name: "SR02<br><span class='text-[10px] text-gray-400'>Resin B</span>", ratio: 0.15, formula: "MR02 × 15%" },
+                    { code: "Water", name: "水<br><span class='text-[10px] text-gray-400'>Water</span>", ratio: 0.30, formula: "MR02 × 30%" },
+                    { code: "Color", name: "色浆<br><span class='text-[10px] text-gray-400'>Color Paste</span>", ratio: 0, formula: "适量 / As needed" }
+                ]
+            },
+            mr02_reinforced: {
+                // Reinforced Ground Face (30% resins, 0% water)
+                baseConsumption: 16 / 46, // Using same base consumption
+                mixMethod: "搅拌机混合搅拌<br><span class='text-xs text-gray-400'>Mix with mechanical mixer.</span>",
+                notices: [
+                    "开始不用加水<br><span class='text-xs text-gray-400'>Do not add water initially.</span>",
+                    "中途变稠可以加少许水<br><span class='text-xs text-gray-400'>Can add small amount of water if thickens.</span>"
+                ],
+                materials: [
+                    { code: "MR02", name: "MR02细砂<br><span class='text-[10px] text-gray-400'>MR02 Fine</span>", ratio: 1, isBase: true, formula: "/" },
+                    { code: "SR01", name: "SR01<br><span class='text-[10px] text-gray-400'>Resin A</span>", ratio: 0.30, formula: "MR02 × 30%" },
+                    { code: "SR02", name: "SR02<br><span class='text-[10px] text-gray-400'>Resin B</span>", ratio: 0.30, formula: "MR02 × 30%" },
+                    { code: "Water", name: "水<br><span class='text-[10px] text-gray-400'>Water</span>", ratio: 0, formula: "不加水 / None" },
+                    { code: "Color", name: "色浆<br><span class='text-[10px] text-gray-400'>Color Paste</span>", ratio: 0, formula: "适量 / As needed" }
+                ]
+            },
+            sealer: {
+                // Sealer/Primer
+                baseConsumption: 0.05, // 10kg mix / 200m2
+                isTotalMix: true,
+                mixMethod: "用搅拌转或者棍子搅拌<br><span class='text-xs text-gray-400'>Mix with drill or stick.</span>",
+                notices: [
+                    "SR01(5kg)+SR02(5kg)+水(10kg) 可施工约 200m²<br><span class='text-xs text-gray-400'>Full set covers approx 200m².</span>",
+                    "一定要用短毛滚筒刷 (4-6mm)<br><span class='text-xs text-gray-400'>Must use short-nap roller (4-6mm).</span>",
+                    "否则会出问题<br><span class='text-xs text-gray-400'>Otherwise issues may occur.</span>"
+                ],
+                materials: [
+                    { code: "SR01", name: "SR01<br><span class='text-[10px] text-gray-400'>Resin A</span>", share: 0.5, formula: "SR01:SR02 = 1:1" },
+                    { code: "SR02", name: "SR02<br><span class='text-[10px] text-gray-400'>Resin B</span>", share: 0.5, formula: "SR01:SR02 = 1:1" },
+                    { code: "Water", name: "水<br><span class='text-[10px] text-gray-400'>Water</span>", share: 1, formula: "SR01+SR02 Total" }
+                ]
+            },
+            protection: {
+                // Protection Layer
+                baseConsumption: 0.0625, // 5kg mix / 80m2
+                isTotalMix: true,
+                mixMethod: "1. T01+T02(不加水)顺时针搅拌1分钟，逆时针1分钟。<br><span class='text-xs text-gray-400'>1. Mix T01+T02 (no water) clockwise 1 min, counter-clockwise 1 min.</span><br>2. 加入水，再搅拌1分钟。<br><span class='text-xs text-gray-400'>2. Add water, mix 1 min.</span><br>3. 若有泡沫需静置1-2分钟。<br><span class='text-xs text-gray-400'>3. Wait 1-2 mins if bubbles appear.</span>",
+                notices: [
+                    "搅拌完需在30分-2小时内用完<br><span class='text-xs text-gray-400'>Use within 30min-2hr after mixing.</span>",
+                    "一定要用短毛滚筒刷 (4-6mm)<br><span class='text-xs text-gray-400'>Must use short-nap roller (4-6mm).</span>",
+                    "滚筒交叉乱刷，切勿横直竖平刷<br><span class='text-xs text-gray-400'>Cross-hatch application only. Do not roll straight.</span>"
+                ],
+                materials: [
+                    { code: "T01", name: "T01<br><span class='text-[10px] text-gray-400'>Part A</span>", share: 0.8, formula: "T01:T02 = 4:1" },
+                    { code: "T02", name: "T02<br><span class='text-[10px] text-gray-400'>Part B</span>", share: 0.2, formula: "T01:T02 = 4:1" },
+                    { code: "Water", name: "水<br><span class='text-[10px] text-gray-400'>Water</span>", share: 0.1, formula: "(T01+T02) × 10%" }
+                ]
+            }
+        };
+
+        // Logic
+        // Logic Functionality
+        // Generate Color Options
+        const colorOptions = [];
+        // NSC01 - NSC22
+        for (let i = 1; i <= 22; i++) {
+            const num = i.toString().padStart(2, '0');
+            colorOptions.push(`NSC${num}`);
+        }
+        // Special
+        const specials = ['NSC KF', 'NSC NC', 'NSC W', 'NSC XY', 'NSC XK', 'NSC XR'];
+        colorOptions.push(...specials);
+        // NSC113 - NSC117
+        for (let i = 113; i <= 117; i++) {
+            colorOptions.push(`NSC${i}`);
+        }
+
+        // State for dynamic color rows
+        // Each item: { id: Date.now(), code: '', ratio: 0 }
+        let colorRows = [
+            { id: Date.now(), code: '', ratio: '' } // Default 1 empty row
+        ];
+
+        let currentInputMode = 'area'; // 'area' or 'material'
+
+        function setUnit(unit) {
+            currentUnit = unit;
+            document.getElementById('unitLabel').innerText = unit;
+
+            // Toggle Buttons Style
+            if (unit === 'm2') {
+                document.getElementById('btn-m2').classList.replace('unit-inactive', 'unit-active');
+                document.getElementById('btn-ft2').classList.replace('unit-active', 'unit-inactive');
+            } else {
+                document.getElementById('btn-ft2').classList.replace('unit-inactive', 'unit-active');
+                document.getElementById('btn-m2').classList.replace('unit-active', 'unit-inactive');
+            }
+            calculate();
+        }
+
+        function setInputMode(mode) {
+            currentInputMode = mode;
+            const areaBtn = document.getElementById('mode-area');
+            const matBtn = document.getElementById('mode-material');
+            const areaContainer = document.getElementById('areaInputContainer');
+            const matContainer = document.getElementById('materialInputContainer');
+
+            if (mode === 'area') {
+                areaBtn.className = "flex-1 py-2 text-sm font-bold text-gray-900 bg-white shadow-sm rounded-lg transition-all";
+                matBtn.className = "flex-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-all";
+                areaContainer.classList.remove('hidden');
+                matContainer.classList.add('hidden');
+            } else {
+                matBtn.className = "flex-1 py-2 text-sm font-bold text-gray-900 bg-white shadow-sm rounded-lg transition-all";
+                areaBtn.className = "flex-1 py-2 text-sm font-medium text-gray-500 hover:text-gray-900 transition-all";
+                matContainer.classList.remove('hidden');
+                areaContainer.classList.add('hidden');
+                updateMaterialLabel();
+            }
+            calculate();
+        }
+
+        function updateMaterialLabel() {
+            const processKey = document.getElementById('processSelect').value;
+            const labelEl = document.getElementById('materialInputLabel');
+            if (processKey === 'mr02_standard' || processKey === 'mr02_reinforced') {
+                labelEl.innerHTML = `MR02重量 <span class="text-xs font-normal text-gray-400">/ MR02 Weight</span>`;
+            } else if (processKey === 'ground_base') {
+                labelEl.innerHTML = `MR01重量 <span class="text-xs font-normal text-gray-400">/ MR01 Weight</span>`;
+            } else {
+                labelEl.innerHTML = `总混合重量 <span class="text-xs font-normal text-gray-400">/ Total Mix Weight</span>`;
+            }
+        }
+
+        // Toggle Color Section Visibility based on Process
+        function toggleColorSection() {
+            const processKey = document.getElementById('processSelect').value;
+            const colorSection = document.getElementById('colorSection');
+
+            if (processKey === 'mr02_standard' || processKey === 'mr02_reinforced') {
+                colorSection.classList.remove('hidden');
+                colorSection.classList.add('fade-in-up');
+                // Only render if empty to avoid input lag/focus loss on re-render during typing
+                if (document.getElementById('colorRowsContainer').children.length === 0) {
+                    renderColorRows();
+                }
+            } else {
+                colorSection.classList.add('hidden');
+            }
+
+            // Toggle Protection Settings
+            const protectionSettings = document.getElementById('protectionSettings');
+            if (processKey === 'protection') {
+                protectionSettings.classList.remove('hidden');
+            } else {
+                protectionSettings.classList.add('hidden');
+            }
+        }
+
+        // --- Dynamic Color Row Logic ---
+
+        function renderColorRows() {
+            const container = document.getElementById('colorRowsContainer');
+            container.innerHTML = '';
+
+            colorRows.forEach((row, index) => {
+                const div = document.createElement('div');
+                div.className = 'flex items-center space-x-2 mb-2 fade-in-up';
+                div.style.animationDelay = `${index * 0.05}s`;
+
+                // Options HTML
+                const optionsHtml = colorOptions.map(opt =>
+                    `<option value="${opt}" ${row.code === opt ? 'selected' : ''}>${opt}</option>`
+                ).join('');
+
+                div.innerHTML = `
+                    <div class="relative flex-1">
+                        <select onchange="updateColorRow(${row.id}, 'code', this.value)" class="w-full appearance-none bg-white rounded-xl py-3 pl-3 pr-8 text-sm font-medium text-gray-900 border border-gray-100 outline-none focus:border-blue-500">
+                            <option value="" disabled ${!row.code ? 'selected' : ''}>选择色号</option>
+                            ${optionsHtml}
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                            <i data-lucide="chevron-down" class="w-4 h-4"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="relative w-24">
+                        <input type="text" inputmode="decimal" placeholder="0" value="${row.ratio}" oninput="updateColorRow(${row.id}, 'ratio', this.value)" class="w-full bg-white rounded-xl py-3 pl-3 pr-10 text-sm font-bold text-gray-900 border border-gray-100 outline-none focus:border-blue-500 text-right">
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-3 text-gray-400">
+                            <span class="text-[10px] text-gray-500">g/kg</span>
+                        </div>
+                    </div>
+
+                    ${colorRows.length > 1 ? `
+                    <button onclick="removeColorRow(${row.id})" class="p-3 text-red-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors">
+                        <i data-lucide="trash-2" class="w-4 h-4"></i>
+                    </button>
+                    ` : `
+                    <div class="w-10"></div>
+                    `}
+                `;
+                container.appendChild(div);
+            });
+            lucide.createIcons();
+        }
+
+        function addColorRow() {
+            colorRows.push({ id: Date.now(), code: '', ratio: '' });
+            renderColorRows();
+            calculate();
+        }
+
+        function removeColorRow(id) {
+            if (colorRows.length <= 1) return;
+            colorRows = colorRows.filter(r => r.id !== id);
+            renderColorRows();
+            calculate();
+        }
+
+        function updateColorRow(id, field, value) {
+            const row = colorRows.find(r => r.id === id);
+            if (row) {
+                row[field] = value;
+                calculate();
+            }
+        }
+
+        // -------------------------------
+
+        function calculate() {
+            const processKey = document.getElementById('processSelect').value;
+            const container = document.getElementById('resultContainer');
+            const tbody = document.getElementById('materialTableBody');
+            const mixMethodEl = document.getElementById('mixMethod');
+            const noticeListEl = document.getElementById('noticeList');
+
+            // Dynamic Label Update
+            if (currentInputMode === 'material') {
+                updateMaterialLabel();
+            }
+
+            toggleColorSection();
+
+            let areaInM2 = 0;
+            let baseAmountInput = 0; // The weight we use as reference (either MR02/MR01 or Total Mix)
+
+            // Validate Basic Process Selection
+            if (!processKey) {
+                container.classList.add('hidden');
+                return;
+            }
+
+            const data = processes[processKey];
+
+            // --- INPUT LOGIC ---
+            if (currentInputMode === 'area') {
+                let inputArea = parseFloat(document.getElementById('areaInput').value);
+                if (!inputArea || inputArea <= 0) {
+                    container.classList.add('hidden');
+                    return;
+                }
+
+                // Convert to M2
+                areaInM2 = inputArea;
+                if (currentUnit === 'ft2') {
+                    areaInM2 = inputArea / SQFT_TO_SQM;
+                }
+
+            } else {
+                // MATERIAL INPUT MODE
+                let inputWeight = parseFloat(document.getElementById('materialInput').value);
+                if (!inputWeight || inputWeight <= 0) {
+                    container.classList.add('hidden');
+                    document.getElementById('calculatedAreaDisplay').innerText = "0 " + currentUnit;
+                    return;
+                }
+
+                // Calculate Area based on Material Weight
+                // if isTotalMix: BaseConsumption = mixWeight / Area -> Area = mixWeight / BaseConsumption
+                // if not TotalMix: BaseConsumption = baseMatWeight / Area -> Area = baseMatWeight / BaseConsumption
+
+                // Note: baseConsumption in data is kg/m2
+                areaInM2 = inputWeight / data.baseConsumption;
+
+                // Update Display
+                let displayArea = areaInM2;
+                if (currentUnit === 'ft2') {
+                    displayArea = areaInM2 * SQFT_TO_SQM;
+                }
+                document.getElementById('calculatedAreaDisplay').innerText = displayArea.toFixed(1) + " " + currentUnit;
+            }
+
+            container.classList.remove('hidden');
+
+            mixMethodEl.innerHTML = data.mixMethod;
+            noticeListEl.innerHTML = data.notices.map(n => `<li>${n}</li>`).join('');
+            tbody.innerHTML = '';
+
+            if (data.isTotalMix) {
+                // Sealer/Protection logic
+                const totalMainMix = areaInM2 * data.baseConsumption;
+                data.materials.forEach(mat => {
+                    let amount = 0;
+                    if (mat.code === 'Water' && processKey === 'sealer') {
+                        amount = totalMainMix * mat.share;
+                    } else if (mat.code === 'Water' && processKey === 'protection') {
+                        const ratio = parseFloat(document.getElementById('protectionWaterRatio').value);
+                        amount = totalMainMix * ratio;
+                        // Update formula display dynamically if possible, but for now fixed formula text is okay or can be updated.
+                        // Ideally we update the mat object or just pass the formula string to addRow.
+                        // Let's override the formula text for this row.
+                        mat.formula = `(T01+T02) × ${ratio * 100}%`;
+                    } else {
+                        amount = totalMainMix * mat.share;
+                    }
+                    addRow(tbody, mat.name, formatWeight(amount), mat.formula);
+                });
+            } else {
+                // MR01/MR02 logic
+                const baseAmount = areaInM2 * data.baseConsumption; // MR02 or MR01 Amount (Kg)
+
+                data.materials.forEach(mat => {
+                    // Skip the generic "Color" row entirely, we handle dynamic rows below
+                    if (mat.code === "Color") {
+                        // Add Dynamic Color Rows
+                        colorRows.forEach(row => {
+                            if (row.code && parseFloat(row.ratio) > 0) {
+                                const amountInAm = baseAmount * (parseFloat(row.ratio) / 1000);
+                                addRow(tbody, `${row.code}色浆`, formatWeight(amountInAm), `MR02 × ${row.ratio}g/kg`, true);
+                            }
+                        });
+                        return;
+                    }
+
+                    let amount = 0;
+                    if (mat.isBase) amount = baseAmount;
+                    else if (mat.ratio > 0) amount = baseAmount * mat.ratio;
+
+                    let displayAmount = formatWeight(amount);
+                    if (mat.ratio === 0) displayAmount = "-";
+
+                    addRow(tbody, mat.name, displayAmount, mat.formula);
+                });
+            }
+        }
+
+        function formatWeight(kg) {
+            if (kg <= 0) return "-";
+            if (kg < 1) return (kg * 1000).toFixed(2) + ' g';
+            return kg.toFixed(2) + ' kg';
+        }
+
+        function addRow(tbody, name, amount, formula, isColor = false) {
+            const tr = document.createElement('tr');
+            tr.className = "border-b border-gray-100 hover:bg-gray-50 transition-colors";
+
+            // Simplified Row Render - No Inputs in Table anymore
+            let nameClass = "font-medium text-gray-800 leading-tight";
+            let amountClass = "font-bold text-blue-600 text-base";
+
+            if (isColor) {
+                // Highlight color rows slightly
+                tr.className += " bg-blue-50/30";
+                nameClass = "font-medium text-blue-800 leading-tight";
+            }
+
+            tr.innerHTML = `
+                <td class="py-3 px-4 ${nameClass}">${name}</td>
+                <td class="py-3 px-4 text-right ${amountClass}">${amount}</td>
+                <td class="py-3 px-4 text-right text-gray-400 text-[10px]">${formula}</td>
+            `;
+            tbody.appendChild(tr);
+        }
+    </script>
+</body>
+
+</html>
