@@ -118,10 +118,14 @@
                     class="w-full appearance-none bg-white rounded-2xl py-4 pl-4 pr-10 text-base font-medium text-gray-900 shadow-sm border border-gray-100 focus:ring-2 focus:ring-black/5 transition-all outline-none">
                     <option value="" disabled selected>请选择 / Select Type</option>
                     <option value="ground_base">地面底层 (MR01) / Ground Base</option>
-                    <option value="mr02_standard">常规地面面层 (MR02) / Standard Ground Face</option>
+                    <option value="mr02_standard">常规墙面面层 (MR02) / Standard Ground Face</option>
                     <option value="mr02_reinforced">加强版地面面层 (MR02) / Reinforced Ground Face</option>
                     <option value="sealer">封孔剂 (SR) / Sealer/Primer</option>
                     <option value="protection">罩面保护层 (T系列) / Protection</option>
+                    <option value="sto_base">STO 基础层 / STO Base</option>
+                    <option value="m4_layer">M4 层 / M4 Layer</option>
+                    <option value="m5_layer">M5 层 / M5 Layer</option>
+                    <option value="m6_layer">M6 层 / M6 Layer</option>
                 </select>
                 <div class="pointer-events-none absolute inset-y-0 right-0 flex itemscenter px-4 text-gray-500">
                     <i data-lucide="chevron-down" class="w-5 h-5"></i>
@@ -286,6 +290,36 @@
         let colorPerKg = 0;
 
         // Data Definition (Bilingual)
+        const buildStoLayerProcess = (baseCode, baseName, baseKgPerM2, includeHardener, options = {}) => ({
+            colorBaseCode: options.colorBaseCode || baseCode,
+            supportsColorPaste: Boolean(options.supportsColorPaste),
+            baseConsumption: baseKgPerM2,
+            mixMethod: "机械搅拌混合<br><span class='text-xs text-gray-400'>Mix with mechanical mixer.</span>",
+            notices: includeHardener
+                ? [
+                    "基础料加入 10% 固化剂后搅拌<br><span class='text-xs text-gray-400'>Add 10% hardener before mixing.</span>",
+                    "搅拌均匀后直接施工<br><span class='text-xs text-gray-400'>Apply after mixing evenly.</span>"
+                ]
+                : [
+                    "直接施工，无需额外添加<br><span class='text-xs text-gray-400'>Apply directly. No extra additive needed.</span>"
+                ],
+            materials: [
+                { code: baseCode, name: `${baseName}<br><span class='text-[10px] text-gray-400'>${baseCode} Base</span>`, ratio: 1, isBase: true, formula: "/" },
+                ...(includeHardener ? [{
+                    code: "Hardener",
+                    name: "固化剂<br><span class='text-[10px] text-gray-400'>Hardener</span>",
+                    ratio: 0.10,
+                    formula: `${baseCode} × 10%`
+                }] : []),
+                ...(options.supportsColorPaste ? [{
+                    code: "Color",
+                    name: "色浆<br><span class='text-[10px] text-gray-400'>Color Paste</span>",
+                    ratio: 0,
+                    formula: "适量 / As needed"
+                }] : [])
+            ]
+        });
+
         const processes = {
             ground_base: {
                 // Ground Base (MR01)
@@ -368,7 +402,11 @@
                     { code: "T02", name: "T02<br><span class='text-[10px] text-gray-400'>Part B</span>", share: 0.2, formula: "T01:T02 = 4:1" },
                     { code: "Water", name: "水<br><span class='text-[10px] text-gray-400'>Water</span>", share: 0.1, formula: "(T01+T02) × 10%" }
                 ]
-            }
+            },
+            sto_base: buildStoLayerProcess("STO", "STO基础", 0.75, false),
+            m4_layer: buildStoLayerProcess("M4", "M4", 0.75, true, { supportsColorPaste: true }),
+            m5_layer: buildStoLayerProcess("M5", "M5", 0.55, true, { supportsColorPaste: true }),
+            m6_layer: buildStoLayerProcess("M6", "M6", 0.30, true, { supportsColorPaste: true })
         };
 
         // Logic
@@ -440,6 +478,14 @@
                 labelEl.innerHTML = `MR02重量 <span class="text-xs font-normal text-gray-400">/ MR02 Weight</span>`;
             } else if (processKey === 'ground_base') {
                 labelEl.innerHTML = `MR01重量 <span class="text-xs font-normal text-gray-400">/ MR01 Weight</span>`;
+            } else if (processKey === 'sto_base') {
+                labelEl.innerHTML = `STO重量 <span class="text-xs font-normal text-gray-400">/ STO Weight</span>`;
+            } else if (processKey === 'm4_layer') {
+                labelEl.innerHTML = `M4重量 <span class="text-xs font-normal text-gray-400">/ M4 Weight</span>`;
+            } else if (processKey === 'm5_layer') {
+                labelEl.innerHTML = `M5重量 <span class="text-xs font-normal text-gray-400">/ M5 Weight</span>`;
+            } else if (processKey === 'm6_layer') {
+                labelEl.innerHTML = `M6重量 <span class="text-xs font-normal text-gray-400">/ M6 Weight</span>`;
             } else {
                 labelEl.innerHTML = `总混合重量 <span class="text-xs font-normal text-gray-400">/ Total Mix Weight</span>`;
             }
@@ -454,6 +500,12 @@
                 colorSection.classList.remove('hidden');
                 colorSection.classList.add('fade-in-up');
                 // Only render if empty to avoid input lag/focus loss on re-render during typing
+                if (document.getElementById('colorRowsContainer').children.length === 0) {
+                    renderColorRows();
+                }
+            } else if (processKey === 'm4_layer' || processKey === 'm5_layer' || processKey === 'm6_layer') {
+                colorSection.classList.remove('hidden');
+                colorSection.classList.add('fade-in-up');
                 if (document.getElementById('colorRowsContainer').children.length === 0) {
                     renderColorRows();
                 }
@@ -636,10 +688,11 @@
                     // Skip the generic "Color" row entirely, we handle dynamic rows below
                     if (mat.code === "Color") {
                         // Add Dynamic Color Rows
+                        const colorBaseCode = data.colorBaseCode || "MR02";
                         colorRows.forEach(row => {
                             if (row.code && parseFloat(row.ratio) > 0) {
                                 const amountInAm = baseAmount * (parseFloat(row.ratio) / 1000);
-                                addRow(tbody, `${row.code}色浆`, formatWeight(amountInAm), `MR02 × ${row.ratio}g/kg`, true);
+                                addRow(tbody, `${row.code}色浆`, formatWeight(amountInAm), `${colorBaseCode} × ${row.ratio}g/kg`, true);
                             }
                         });
                         return;
